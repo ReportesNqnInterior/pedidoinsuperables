@@ -982,28 +982,64 @@ function exportarExcel(){
     p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; });
   });
 
+  // ── Estilos ──
+  const ST_TITULO = { font:{bold:true,sz:12,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'left'} };
+  const ST_HEAD_ART = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'left'}, border:{bottom:{style:'thin',color:{rgb:'444444'}}} };
+  const ST_HEAD_TOT = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'C8102E'}}, alignment:{horizontal:'center'} };
+  const ST_HEAD_SUC = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'center'} };
+  const ST_SEP      = { font:{bold:false,sz:9,color:{rgb:'888780'}}, fill:{fgColor:{rgb:'F0EDE6'}}, alignment:{horizontal:'left'} };
+  const ST_ART      = { font:{sz:10}, fill:{fgColor:{rgb:'FFFFFF'}}, alignment:{horizontal:'left'} };
+  const ST_TOT_VAL  = { font:{bold:true,sz:11,color:{rgb:'C8102E'}}, fill:{fgColor:{rgb:'FFF0F0'}}, alignment:{horizontal:'center'} };
+  const ST_TOT_ZERO = { font:{sz:10,color:{rgb:'CCCCCC'}}, fill:{fgColor:{rgb:'FFFFFF'}}, alignment:{horizontal:'center'} };
+  const ST_HAS_VAL  = { font:{bold:true,sz:10,color:{rgb:'1A7A3C'}}, fill:{fgColor:{rgb:'E6F5EC'}}, alignment:{horizontal:'center'} };
+  const ST_ZERO     = { font:{sz:10,color:{rgb:'DDDDDD'}}, fill:{fgColor:{rgb:'FFFFFF'}}, alignment:{horizontal:'center'} };
+
+  function xc(v, s){ return {v, s, t: typeof v==='number'?'n':'s'}; }
+
   function hacerHoja(lista){
     if(!lista.length) return XLSX.utils.aoa_to_sheet([]);
-    const header=['ART','TOTAL',...sucs];
-    const rows=[
-      [`V-SEM ${ST.semana}`],
-      header
-    ];
-    lista.forEach(p=>{
+    const ncols = 2 + sucs.length;
+
+    // Armar filas como arrays de celdas con estilo
+    const wsData = [];
+
+    // Fila 0: título
+    const tituloRow = [xc(`V-SEM ${ST.semana}`, ST_TITULO)];
+    for(let i=1;i<ncols;i++) tituloRow.push(xc('',ST_TITULO));
+    wsData.push(tituloRow);
+
+    // Fila 1: encabezados
+    const headRow = [xc('ART',ST_HEAD_ART), xc('TOTAL',ST_HEAD_TOT), ...sucs.map(s=>xc(s,ST_HEAD_SUC))];
+    wsData.push(headRow);
+
+    lista.forEach((p,pi)=>{
       const label=`${p} (${ST.plus[norm(p)]?'PLUS':'NO PLUS'})`;
       const vals=sucs.map(s=>(bySuc[s]&&bySuc[s][norm(p)])||0);
       const total=vals.reduce((a,b)=>a+b,0);
-      rows.push([label, total, ...vals]);
+      const row=[
+        xc(label, ST_ART),
+        total>0 ? xc(total,ST_TOT_VAL) : xc('',ST_TOT_ZERO),
+        ...vals.map(v=> v>0 ? xc(v,ST_HAS_VAL) : xc('',ST_ZERO))
+      ];
+      wsData.push(row);
     });
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    // Ancho de columnas
-    ws['!cols']=[{wch:35},{wch:8},...sucs.map(()=>({wch:7}))];
-    // Merge título
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:header.length-1}}];
+
+    // Convertir a worksheet
+    const ws = {};
+    wsData.forEach((row,r)=>{
+      row.forEach((cell,c)=>{
+        const addr = XLSX.utils.encode_cell({r,c});
+        ws[addr] = cell;
+      });
+    });
+    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:wsData.length-1,c:ncols-1}});
+    ws['!cols'] = [{wch:38},{wch:8},...sucs.map(()=>({wch:7}))];
+    ws['!rows'] = [{hpt:18},{hpt:16},...lista.map(()=>({hpt:15}))];
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:ncols-1}}];
     return ws;
   }
 
-  const wb=XLSX.utils.book_new();
+  const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, hacerHoja(ST.productos.carne), 'Carnicería');
   XLSX.utils.book_append_sheet(wb, hacerHoja(ST.productos.verd),  'Verdulería');
   XLSX.writeFile(wb, `pedido-consolidado-sem${ST.semana.replace(/\s/g,'-')}.xlsx`);
