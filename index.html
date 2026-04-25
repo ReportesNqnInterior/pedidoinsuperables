@@ -207,6 +207,27 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .plus-opt.active-no{background:#E8F5EC;color:#1A7A3C}
 .plus-opt.active-yes{background:#FBE9EC;color:#C8102E}
 
+
+/* ── Tabla consolidada ── */
+.cons-wrap{overflow-x:auto;margin-bottom:1rem}
+.cons-table{border-collapse:collapse;font-size:11px;white-space:nowrap;width:100%}
+.cons-table th{background:var(--ink);color:#fff;padding:6px 10px;text-align:center;font-weight:500;position:sticky;top:0}
+.cons-table th.art-col{text-align:left;min-width:180px;position:sticky;left:0;z-index:2;background:var(--ink)}
+.cons-table th.tot-col{background:var(--accent);min-width:52px}
+.cons-table td{padding:5px 10px;border-bottom:1px solid var(--border);text-align:center;color:var(--ink2)}
+.cons-table td.art-col{text-align:left;font-size:11px;color:var(--ink);font-weight:500;background:var(--surface);position:sticky;left:0;border-right:1px solid var(--border)}
+.cons-table td.tot-col{font-weight:700;color:var(--accent);background:#fff8f8}
+.cons-table td.has-val{font-weight:600;color:var(--ink);background:var(--green-l)}
+.cons-table td.zero{color:var(--border2)}
+.cons-table tr:hover td{background:#fafaf8}
+.cons-table tr:hover td.art-col{background:#f5f4f0}
+.cons-sep th,.cons-sep td{background:#f0ede6!important;color:var(--ink3)!important;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:3px 10px}
+.export-row{display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap}
+.btn-export{height:32px;padding:0 14px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;font-size:12px;cursor:pointer;color:var(--ink);font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px}
+.btn-export:hover{background:var(--bg)}
+.btn-export.green{border-color:var(--green);color:var(--green)}
+.btn-export.green:hover{background:var(--green-l)}
+
 .spin-dark{display:inline-block;width:12px;height:12px;border:1.5px solid rgba(0,0,0,.15);border-top-color:var(--ink2);border-radius:50%;animation:rot .7s linear infinite}
 </style>
 </head>
@@ -357,6 +378,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 
     <!-- Tab: Pedidos -->
     <div id="atPedidos" style="display:none">
+      <div class="export-row"><button class="btn-export green" onclick="exportarExcel()">⬇ Excel</button><button class="btn-export" onclick="exportarTexto()">Copiar texto</button></div>
       <div class="pedidos-toolbar">
         <span id="pedidosInfo">—</span>
         <button class="btn-refresh" onclick="cargarPedidos()">
@@ -861,6 +883,9 @@ async function syncDrive(){
 }
 
 // ── Tabla de pedidos ────────────────────────
+// Estado de pedidos cacheado para exportar
+let _pedidosCache = [];
+
 async function cargarPedidos(){
   const cont=document.getElementById('pedidosContent');
   cont.innerHTML='<div class="pedidos-loading"><span class="spin-dark"></span> Cargando pedidos...</div>';
@@ -869,23 +894,120 @@ async function cargarPedidos(){
     const r=await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
     if(!r.ok){cont.innerHTML=`<div class="empty-pedidos">Error: ${r.error}</div>`;return;}
     const pedidos=r.pedidos||[];
+    _pedidosCache=pedidos;
     document.getElementById('pedidosInfo').innerHTML=pedidos.length
       ?`<span class="total-badge"><span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>${pedidos.length} sucursal${pedidos.length!==1?'es':''}</span>`
       :'Sin pedidos registrados';
     if(!pedidos.length){cont.innerHTML='<div class="empty-pedidos">No hay pedidos para esta semana aún</div>';return;}
-    cont.innerHTML=`<div style="overflow-x:auto"><table class="pedidos-table">
-      <thead><tr><th>Suc.</th><th>Cartelería solicitada</th><th>Hora</th></tr></thead>
-      <tbody>${pedidos.map(p=>{
-        const items=p.items||[];
-        const tags=items.map(it=>`<span>${it.nombre} <b>×${it.cantidad}</b></span>`).join('');
-        return `<tr>
-          <td><span class="suc-num">${p.sucursal}</span></td>
-          <td><div class="items-list">${tags||'—'}</div></td>
-          <td class="ts-cell">${(p.timestamp||'').split(' ')[1]||p.timestamp||'—'}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
+    cont.innerHTML=renderTablaConsolidada(pedidos);
   }catch(e){cont.innerHTML='<div class="empty-pedidos">Error al cargar</div>';}
+}
+
+function renderTablaConsolidada(pedidos){
+  // Recopilar todas las sucursales ordenadas
+  const sucs=[...new Set(pedidos.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  // Mapa sucursal → items
+  const bySuc={};
+  pedidos.forEach(p=>{ bySuc[p.sucursal]={}; p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; }); });
+  // Todos los productos en orden: primero carne, luego verd
+  const prods=[
+    ...ST.productos.carne.map(n=>({nombre:n,tipo:'carne'})),
+    ...ST.productos.verd.map(n=>({nombre:n,tipo:'verd'}))
+  ];
+  if(!prods.length){
+    // Si no hay productos configurados, armar lista desde los pedidos
+    const allProds=new Set(); pedidos.forEach(p=>p.items.forEach(it=>allProds.add(it.nombre)));
+    allProds.forEach(n=>prods.push({nombre:n,tipo:'?'}));
+  }
+
+  // Cabecera
+  let html=`<div class="cons-wrap"><table class="cons-table">
+    <thead>
+      <tr>
+        <th class="art-col">ART</th>
+        <th class="tot-col">TOTAL</th>
+        ${sucs.map(s=>`<th>${s}</th>`).join('')}
+      </tr>
+    </thead><tbody>`;
+
+  // Separador carne
+  const tieneCarne=prods.some(p=>p.tipo==='carne');
+  const tieneVerd=prods.some(p=>p.tipo==='verd');
+  if(tieneCarne&&tieneVerd){
+    html+=`<tr class="cons-sep"><td class="art-col" colspan="${2+sucs.length}">Carnicería</td></tr>`;
+  }
+
+  let lastTipo='carne';
+  prods.forEach(p=>{
+    const esPLUS=ST.plus[norm(p.nombre)]===true;
+    const label=`${p.nombre} (${esPLUS?'PLUS':'NO PLUS'})`;
+    if(p.tipo==='verd'&&lastTipo==='carne'&&tieneVerd&&tieneCarne){
+      html+=`<tr class="cons-sep"><td class="art-col" colspan="${2+sucs.length}">Verdulería & Frutas</td></tr>`;
+      lastTipo='verd';
+    }
+    const vals=sucs.map(s=>(bySuc[s]&&bySuc[s][norm(p.nombre)])||0);
+    const total=vals.reduce((a,b)=>a+b,0);
+    html+=`<tr>
+      <td class="art-col">${label}</td>
+      <td class="tot-col">${total||''}</td>
+      ${vals.map(v=>v>0?`<td class="has-val">${v}</td>`:`<td class="zero">·</td>`).join('')}
+    </tr>`;
+  });
+
+  html+='</tbody></table></div>';
+  return html;
+}
+
+function exportarTexto(){
+  if(!_pedidosCache.length){toast('Sin datos');return;}
+  const sucs=[...new Set(_pedidosCache.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  const bySuc={};
+  _pedidosCache.forEach(p=>{ bySuc[p.sucursal]={}; p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; }); });
+  const prods=[...ST.productos.carne,...ST.productos.verd];
+  let txt=`PEDIDO CONSOLIDADO · ${ST.semana}\nART\tTOTAL\t${sucs.join('\t')}\n`;
+  prods.forEach(p=>{
+    const vals=sucs.map(s=>(bySuc[s]&&bySuc[s][norm(p)])||0);
+    const total=vals.reduce((a,b)=>a+b,0);
+    if(total>0) txt+=`${p} (${ST.plus[norm(p)]?'PLUS':'NO PLUS'})\t${total}\t${vals.join('\t')}\n`;
+  });
+  navigator.clipboard.writeText(txt).then(()=>toast('✓ Copiado'));
+}
+
+function exportarExcel(){
+  if(!_pedidosCache.length){toast('Sin datos');return;}
+  const sucs=[...new Set(_pedidosCache.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  const bySuc={};
+  _pedidosCache.forEach(p=>{
+    bySuc[p.sucursal]={};
+    p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; });
+  });
+
+  function hacerHoja(lista){
+    if(!lista.length) return XLSX.utils.aoa_to_sheet([]);
+    const header=['ART','TOTAL',...sucs];
+    const rows=[
+      [`V-SEM ${ST.semana}`],
+      header
+    ];
+    lista.forEach(p=>{
+      const label=`${p} (${ST.plus[norm(p)]?'PLUS':'NO PLUS'})`;
+      const vals=sucs.map(s=>(bySuc[s]&&bySuc[s][norm(p)])||0);
+      const total=vals.reduce((a,b)=>a+b,0);
+      rows.push([label, total, ...vals]);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    // Ancho de columnas
+    ws['!cols']=[{wch:35},{wch:8},...sucs.map(()=>({wch:7}))];
+    // Merge título
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:header.length-1}}];
+    return ws;
+  }
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, hacerHoja(ST.productos.carne), 'Carnicería');
+  XLSX.utils.book_append_sheet(wb, hacerHoja(ST.productos.verd),  'Verdulería');
+  XLSX.writeFile(wb, `pedido-consolidado-sem${ST.semana.replace(/\s/g,'-')}.xlsx`);
+  toast('✓ Excel descargado');
 }
 
 // ══════════════════════════════════════════════
