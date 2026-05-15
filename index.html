@@ -736,34 +736,41 @@ function cargarExcel(input){
       }
 
       // ── Detectar formato ──
-      // Formato A (Ofertas Carne): genéricos en col D (índice 3), verdura en hoja FYV
-      // Formato B (SV):            genéricos en col E (índice 4), verdura mezclada
-      const EXCLUIR_D = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION'];
-      const tieneFormatoA = data.some(r=>{
-        const v=String(r[3]||'').trim();
-        return v.length>4 && !EXCLUIR_D.includes(v) && !/^\d/.test(v) && !v.includes('/') && !v.includes('del ') && !v.includes(' al ');
+      // Formato A (Ofertas Carne): hoja FYV con datos + col D tiene genéricos, col E tiene códigos
+      // Formato B (SV):            col E tiene genéricos, verdura mezclada
+      const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION'];
+
+      const esFormatoA = fyvData.length > 2 && data.some(r=>{
+        const colD = String(r[3]||'').trim();
+        const colE = String(r[4]||'').trim();
+        return colD.length>4 && !EXCLUIR.includes(colD) && !/^\d/.test(colD)
+          && !colD.includes('/') && !colD.includes(' al ')
+          && (colE===''||/^\d/.test(colE));
       });
 
-      if(tieneFormatoA){
-        // ── Formato A: col D = genérico de carne ──
+      if(esFormatoA){
         for(const r of data){
           const v=String(r[3]||'').trim();
-          if(v.length>3 && !EXCLUIR_D.includes(v) && !/^\d/.test(v) && !v.includes('/') && !v.includes('del ')){
+          if(v.length>3 && !EXCLUIR.includes(v) && !/^\d/.test(v) && !v.includes('/') && !v.includes('del ')){
             cSet.add(v);
           }
         }
-        // Verdulería desde hoja FYV (col B = descripción, fila 1 = encabezado)
         for(let i=1;i<fyvData.length;i++){
           const v=String(fyvData[i][1]||'').trim();
           if(v.length>2 && v.toUpperCase()!=='DESC' && v.toUpperCase()!=='DESCRIPCION') vSet.add(v);
         }
       } else {
-        // ── Formato B (SV): col E = todos los genéricos ──
+        // Formato B (SV): col E = todos los genéricos
         for(const r of data){
           const v=String(r[4]||'').trim();
-          if(v.length>3 && v!=='GENERICO' && v!=='ZONA DE INSERT' && !/^=/.test(v) && !/^\d{5,}/.test(v)){
+          if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v) && !/^\d{4,}/.test(v)){
             if(isVerd(v)) vSet.add(v); else cSet.add(v);
           }
+        }
+        // FYV si existe
+        for(let i=1;i<fyvData.length;i++){
+          const v=String(fyvData[i][1]||'').trim();
+          if(v.length>2 && v.toUpperCase()!=='DESC' && v.toUpperCase()!=='DESCRIPCION') vSet.add(v);
         }
       }
 
