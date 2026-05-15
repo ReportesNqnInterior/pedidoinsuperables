@@ -359,6 +359,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
           <button onclick="guardarSemana()">Guardar semana</button>
         </div>
         <div class="adm-status" id="prodStatus">—</div>
+        <button class="btn-act" style="margin-top:.75rem;color:var(--accent);border-color:var(--accent)" onclick="limpiarConfig()">🗑 Limpiar productos cargados</button>
       </div>
     </div>
 
@@ -404,7 +405,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxW3au3yhQYWAcILq7WT
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
-const KEYWORDS_VERD  = ['ESPINACA','LIMON','PAPA','POMELO','REPOLLO','RÚCULA','RUCULA','ZAPALLITO','CHOCLO','TOMATE','CEBOLLA','ZANAHORIA','LECHUGA','BROCOLI','BANANA','MANZANA','NARANJA','PERA','FRUTILLA','DURAZNO'];
+const KEYWORDS_VERD  = ['ESPINACA','LIMON','PAPA','POMELO','REPOLLO','RÚCULA','RUCULA','ZAPALLITO','CHOCLO','TOMATE','CEBOLLA','ZANAHORIA','LECHUGA','BROCOLI','BANANA','MANZANA','NARANJA','PERA','FRUTILLA','DURAZNO','REMOLACHA','ACELGA','APIO','BATATA','BERENJENA','BROCOLI','CALABAZA','CHAUCHA','COLIFLOR','HINOJO','KIWI','LECHUGA','LIMÓN','MANDARINA','PEPINO','PEREJIL','PIMIENTO','RADICHETA','RADICHETTA','REPOLLITO','SANDÍA','SANDIA','UVA','ZAPALLO','ZUCCHINI','FYV','VERDUR','FRUT'];
 
 // ══════════════════════════════════════════════
 //  ESTADO
@@ -1051,6 +1052,24 @@ function exportarExcel(){
   XLSX.utils.book_append_sheet(wb, hacerHoja(ST.productos.verd),  'Verdulería');
   XLSX.writeFile(wb, `pedido-consolidado-sem${ST.semana.replace(/\s/g,'-')}.xlsx`);
   toast('✓ Excel descargado');
+}
+
+function limpiarConfig(){
+  if(!confirm('¿Borrar todos los productos cargados? Tendrás que volver a subir el Excel.')) return;
+  ST.productos={carne:[],verd:[]};
+  ST.semana='';
+  ST.plus={};
+  persistir();
+  document.getElementById('xlStatus').textContent='Ningún archivo cargado';
+  document.getElementById('prodStatus').textContent='—';
+  document.getElementById('semanaInput').value='';
+  document.getElementById('semanaText').textContent='—';
+  document.getElementById('semanaBadge').style.display='none';
+  renderAiGrids();
+  if(scriptOK()){
+    fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'saveConfig',semana:'',productos:{carne:[],verd:[]}})}).catch(()=>{});
+  }
+  toast('✓ Configuración limpiada');
 }
 
 // ══════════════════════════════════════════════
