@@ -618,7 +618,7 @@ function switchCat(cat,btn){
 }
 function actualizarBB(){
   const tot=Object.values(ST.cantidades).reduce((a,b)=>a+(b>0?1:0),0);
-  document.getElementById('bbCount').textContent=`${tot} producto${tot!==1?'s':''}`;
+  const el=document.getElementById('bbCount'); if(el) el.textContent=`${tot} producto${tot!==1?'s':''}`;
   const btn=document.getElementById('btnVerRes'); if(btn) btn.disabled=tot===0;
 }
 function actualizarCatBadges(){
