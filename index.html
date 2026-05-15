@@ -718,7 +718,7 @@ async function generarPDF(){
       if(y+rowH>282){doc.addPage();y=M;}
       doc.setDrawColor(220); doc.setLineWidth(.3); doc.roundedRect(x,y,cW,rowH,2,2);
       const img=getImg(p.nombre,p.tipo);
-      if(img){try{const d=await toDataURL(img.url);doc.addImage(d,'JPEG',x+2,y+2,cW-4,imgH-2,'','FAST');}catch(e){phRect(doc,x,y,cW,imgH);}}
+      if(img){try{const d=await toDataURL(img.url,img.fileId);doc.addImage(d,'JPEG',x+2,y+2,cW-4,imgH-2,'','FAST');}catch(e){phRect(doc,x,y,cW,imgH);}}
       else phRect(doc,x,y,cW,imgH);
       doc.setFontSize(7); doc.setTextColor(50); doc.setFont('helvetica','normal');
       doc.text(doc.splitTextToSize(p.nombre,cW-4)[0],x+2,y+imgH+6);
@@ -734,7 +734,21 @@ async function generarPDF(){
   btn.textContent=orig; btn.disabled=false;
 }
 function phRect(doc,x,y,cW,imgH){doc.setFillColor(245,244,240);doc.rect(x+2,y+2,cW-4,imgH-2,'F');doc.setFontSize(7);doc.setTextColor(180);doc.text('Sin imagen',x+cW/2,y+imgH/2,{align:'center',baseline:'middle'});}
-function toDataURL(url){return new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);res(c.toDataURL('image/jpeg',.85));};i.onerror=rej;i.src=url;});}
+async function toDataURL(url, fileId){
+  // Si tenemos fileId y scriptURL, usar proxy para evitar CORS
+  if(fileId && scriptOK()){
+    try{
+      const r = await fetch(`${SCRIPT_URL}?accion=getImagen&fileId=${fileId}`).then(r=>r.json());
+      if(r.ok) return `data:${r.mime};base64,${r.data}`;
+    }catch(e){}
+  }
+  // Fallback: canvas directo
+  return new Promise((res,rej)=>{
+    const i=new Image(); i.crossOrigin='anonymous';
+    i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);res(c.toDataURL('image/jpeg',.85));};
+    i.onerror=rej; i.src=url;
+  });
+}
 
 function copiarTexto(){
   const c=recopilar('carne'),v=recopilar('verd');
