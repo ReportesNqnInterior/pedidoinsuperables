@@ -1054,8 +1054,32 @@ function exportarExcel(){
   toast('✓ Excel descargado');
 }
 
-function limpiarConfig(){
-  if(!confirm('¿Borrar todos los productos cargados? Tendrás que volver a subir el Excel.')) return;
+async function limpiarConfig(){
+  if(!confirm('Esto va a descargar el consolidado de la semana y luego borrar toda la configuración. ¿Continuás?')) return;
+
+  // 1. Descargar consolidado si hay pedidos
+  if(scriptOK()){
+    try{
+      const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
+      if(r.ok && r.pedidos && r.pedidos.length){
+        _pedidosCache = r.pedidos;
+        exportarExcel();
+        // Esperar un momento para que el archivo se descargue
+        await new Promise(res=>setTimeout(res,1500));
+      } else {
+        toast('Sin pedidos registrados — solo se limpiará la config');
+        await new Promise(res=>setTimeout(res,1500));
+      }
+    } catch(e){
+      toast('No se pudo descargar el consolidado');
+      await new Promise(res=>setTimeout(res,1500));
+    }
+  } else if(_pedidosCache.length){
+    exportarExcel();
+    await new Promise(res=>setTimeout(res,1500));
+  }
+
+  // 2. Limpiar todo
   ST.productos={carne:[],verd:[]};
   ST.semana='';
   ST.plus={};
@@ -1069,7 +1093,7 @@ function limpiarConfig(){
   if(scriptOK()){
     fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'saveConfig',semana:'',productos:{carne:[],verd:[]}})}).catch(()=>{});
   }
-  toast('✓ Configuración limpiada');
+  toast('✓ Consolidado descargado y configuración limpiada');
 }
 
 // ══════════════════════════════════════════════
