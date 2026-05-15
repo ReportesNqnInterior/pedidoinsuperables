@@ -261,9 +261,27 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     </div>
     <div class="suc-form">
       <label class="suc-label" for="sucInput">Número de sucursal</label>
-      <input class="suc-input" type="number" id="sucInput" placeholder="000" min="1" max="999"
-        oninput="this.value=this.value.slice(0,3)" onkeydown="if(event.key==='Enter')iniciarPedido()">
+      <input class="suc-input" type="text" id="sucInput" placeholder="000" maxlength="3" pattern="[0-9]*" inputmode="numeric"
+        oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,3)" onkeydown="if(event.key==='Enter')iniciarPedido()">
       <button class="btn-start" onclick="iniciarPedido()">Comenzar →</button>
+    </div>
+  </div>
+
+  <!-- ══ AVISO PEDIDO EXISTENTE ══ -->
+  <div class="screen" id="scAviso">
+    <div style="text-align:center;padding:2rem 0 1.5rem">
+      <div style="width:56px;height:56px;border-radius:50%;background:#FFF8E1;border:2px solid #F0C040;margin:0 auto 1rem;display:flex;align-items:center;justify-content:center;font-size:24px">⚠</div>
+      <h2 style="font-size:18px;font-weight:600;margin-bottom:.4rem">Ya hay un pedido cargado</h2>
+      <p style="font-size:13px;color:var(--ink2);margin-bottom:.25rem">Suc. <span id="avisoSuc" style="font-family:'DM Mono',monospace;font-weight:500"></span></p>
+      <p style="font-size:12px;color:var(--ink3);font-family:'DM Mono',monospace" id="avisoTS"></p>
+    </div>
+    <div style="background:var(--bg);border-radius:var(--rl);padding:1rem;margin-bottom:1.5rem">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:.65rem">Pedido actual</div>
+      <div id="avisoItems" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn-start" onclick="continuarConPedido()">Modificar pedido →</button>
+      <button class="btn-act" style="width:100%" onclick="showScreen('scInicio')">← Volver</button>
     </div>
   </div>
 
@@ -452,7 +470,8 @@ function showScreen(id){
 function renderBottomResumen(){
   document.getElementById('bottomBar').innerHTML = `
     <div class="bb-info"><div class="bb-count">Suc. ${ST.sucursal}</div><div class="bb-label">${ST.semana||''}</div></div>
-    <button class="btn-bb outline" onclick="showScreen('scPedido')">← Editar</button>`;
+    <button class="btn-bb outline" onclick="showScreen('scPedido')">← Editar</button>
+    <button class="btn-bb" onclick="enviarPedido()">Confirmar ✓</button>`;
 }
 async function sha256(s){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
@@ -487,15 +506,63 @@ async function cargarConfigRemota(){
   }catch(e){}
 }
 
-function iniciarPedido(){
+async function iniciarPedido(){
   const suc = document.getElementById('sucInput').value.trim();
   if(!suc){ document.getElementById('sucInput').focus(); return; }
   if(!ST.productos.carne.length && !ST.productos.verd.length){ toast('El admin aún no cargó los productos'); return; }
-  ST.sucursal = suc;
-  ST.cantidades = {};
+
+  ST.sucursal = String(suc).trim();
   ST.pedidoEnviado = false;
-  document.getElementById('pedidoPill').textContent  = `Suc. ${suc}`;
-  document.getElementById('resPill').textContent     = `Suc. ${suc}`;
+  document.getElementById('pedidoPill').textContent = `Suc. ${suc}`;
+  document.getElementById('resPill').textContent    = `Suc. ${suc}`;
+
+  // Consultar si ya existe pedido para esta sucursal
+  if(scriptOK()){
+    const btn = document.querySelector('.btn-start');
+    const orig = btn.textContent;
+    btn.innerHTML = '<span class="spin" style="border-top-color:#fff"></span>';
+    btn.disabled = true;
+    try{
+      const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
+      if(r.ok && r.pedidos){
+        const existe = r.pedidos.find(p=>String(p.sucursal).trim().padStart(3,'0')===String(suc).trim().padStart(3,'0'));
+        if(existe && existe.items && existe.items.length){
+          // Cargar cantidades existentes
+          ST.cantidades = {};
+          existe.items.forEach(it=>{
+            const tipo = it.tipo;
+            const idx = ST.productos[tipo]?.findIndex(p=>norm(p)===norm(it.nombre));
+            if(idx>=0) ST.cantidades[`${tipo}-${idx}`] = it.cantidad;
+          });
+          // Mostrar aviso
+          document.getElementById('avisoSuc').textContent = suc;
+          document.getElementById('avisoTS').textContent  = existe.timestamp || '';
+          const itemsHtml = existe.items.map(it=>
+            `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
+              <span style="color:var(--ink)">${it.nombre}</span>
+              <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent)">${it.cantidad}</span>
+            </div>`
+          ).join('');
+          document.getElementById('avisoItems').innerHTML = itemsHtml;
+          btn.textContent = orig; btn.disabled = false;
+          showScreen('scAviso');
+          return;
+        }
+      }
+    }catch(e){}
+    btn.textContent = orig; btn.disabled = false;
+  }
+
+  // Sin pedido previo — arrancar limpio
+  ST.cantidades = {};
+  renderGrids();
+  actualizarBB();
+  document.getElementById('bottomBar').style.display='flex';
+  showScreen('scPedido');
+}
+
+function continuarConPedido(){
+  // Las cantidades ya fueron cargadas en iniciarPedido
   renderGrids();
   actualizarBB();
   document.getElementById('bottomBar').style.display='flex';
@@ -913,7 +980,7 @@ async function cargarPedidos(){
 
 function renderTablaConsolidada(pedidos){
   // Recopilar todas las sucursales ordenadas
-  const sucs=[...new Set(pedidos.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  const sucs=[...new Set(pedidos.map(p=>p.sucursal))].sort((a,b)=>String(a).padStart(6,'0').localeCompare(String(b).padStart(6,'0')));
   // Mapa sucursal → items
   const bySuc={};
   pedidos.forEach(p=>{ bySuc[p.sucursal]={}; p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; }); });
@@ -968,7 +1035,7 @@ function renderTablaConsolidada(pedidos){
 
 function exportarTexto(){
   if(!_pedidosCache.length){toast('Sin datos');return;}
-  const sucs=[...new Set(_pedidosCache.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  const sucs=[...new Set(_pedidosCache.map(p=>String(p.sucursal).trim()))].sort((a,b)=>a.padStart(6,'0').localeCompare(b.padStart(6,'0')));
   const bySuc={};
   _pedidosCache.forEach(p=>{ bySuc[p.sucursal]={}; p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; }); });
   const prods=[...ST.productos.carne,...ST.productos.verd];
@@ -983,7 +1050,7 @@ function exportarTexto(){
 
 function exportarExcel(){
   if(!_pedidosCache.length){toast('Sin datos');return;}
-  const sucs=[...new Set(_pedidosCache.map(p=>p.sucursal))].sort((a,b)=>Number(a)-Number(b));
+  const sucs=[...new Set(_pedidosCache.map(p=>String(p.sucursal).trim()))].sort((a,b)=>a.padStart(6,'0').localeCompare(b.padStart(6,'0')));
   const bySuc={};
   _pedidosCache.forEach(p=>{
     bySuc[p.sucursal]={};
