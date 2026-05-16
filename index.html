@@ -86,10 +86,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .btn-bb.outline:hover{background:var(--bg)}
 
 /* resumen */
-.res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:1.25rem}
+.res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,160px));gap:10px;margin-bottom:1.25rem;justify-content:start}
 .res-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
-.res-img-wrap{width:100%;aspect-ratio:4/3;background:var(--bg)}
-.res-img{width:100%;height:100%;object-fit:contain;padding:8px;display:block}
+.res-img-wrap{width:100%;aspect-ratio:4/3;background:var(--bg);overflow:hidden}
+.res-img{width:100%;height:100%;object-fit:contain;padding:4px;display:block}
 .res-img-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--ink3)}
 .res-body{padding:7px 10px 9px}
 .res-name{font-size:10px;color:var(--ink2);line-height:1.3;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -314,7 +314,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <div class="act-row" id="postActions" style="display:none">
       <button class="btn-act" onclick="generarPDF()">⬇ Descargar PDF</button>
       <button class="btn-act" onclick="copiarTexto()">Copiar texto</button>
-      <button class="btn-act red" onclick="nuevoPedido()">Nuevo pedido</button>
+    </div>
+    <div class="act-row" id="postActions2" style="display:none">
+      <button class="btn-act" onclick="arrepentirse()">← Modificar pedido</button>
+      <button class="btn-act red" onclick="nuevoPedido()">Cambiar sucursal</button>
     </div>
   </div>
 
@@ -686,8 +689,19 @@ function marcarEnviado(tipo, ts){
       <p>${ok?'Tu pedido quedó registrado':'Podés descargarlo igual y enviarlo por otro medio'}</p>
       ${ts?`<div class="send-ts">${ts}</div>`:''}
     </div>`;
-  document.getElementById('resActions').style.display  = 'none';
-  document.getElementById('postActions').style.display = 'flex';
+  document.getElementById('resActions').style.display   = 'none';
+  document.getElementById('postActions').style.display  = 'flex';
+  document.getElementById('postActions2').style.display = 'flex';
+}
+
+function arrepentirse(){
+  // Volver al pedido manteniendo las cantidades actuales para modificar
+  ST.pedidoEnviado = false;
+  document.getElementById('resActions').style.display   = 'flex';
+  document.getElementById('postActions').style.display  = 'none';
+  document.getElementById('postActions2').style.display = 'none';
+  document.getElementById('sendState').innerHTML = '';
+  showScreen('scPedido');
 }
 
 function nuevoPedido(){
