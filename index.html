@@ -422,7 +422,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxZp2r-kYCPd0xfM8rEjy_HDIH8MBFPRGWJC66pXXKVQSRDdjeSaI8xZxJcYXQDAFo7kA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxMVrqSRwC04dGoIsfXssW2jm3Yr--_W1X87wozQ30H0e2orbERSyEfcrc5JVYmHHQohw/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -499,13 +499,11 @@ function initInicio(){
 
 async function cargarConfigRemota(){
   try{
-    const r = await fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json());
+    const r = await fetch(`${SCRIPT_URL}?accion=getAll&semana=`).then(r=>r.json());
     if(!r.ok) return;
-    if(r.semana) ST.semana = r.semana;
-    if(r.productos){ ST.productos = r.productos; }
-    // Cargar imágenes
-    const ri = await fetch(`${SCRIPT_URL}?accion=getImagenes`).then(r=>r.json());
-    if(ri.ok && ri.imagenes) ST.imagenes = ri.imagenes;
+    if(r.semana)    ST.semana    = r.semana;
+    if(r.productos) ST.productos = r.productos;
+    if(r.imagenes)  ST.imagenes  = r.imagenes;
     persistir();
   }catch(e){}
 }
@@ -514,60 +512,63 @@ async function iniciarPedido(){
   const suc = document.getElementById('sucInput').value.trim();
   if(!suc){ document.getElementById('sucInput').focus(); return; }
   if(!ST.productos.carne.length && !ST.productos.verd.length){ toast('El admin aún no cargó los productos'); return; }
-  // Asegurar que la semana esté cargada
-  if(!ST.semana && scriptOK()){
-    try{
-      const rc=await fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json());
-      if(rc.ok&&rc.semana){ ST.semana=rc.semana; persistir(); }
-    }catch(e){}
-  }
 
-  ST.sucursal = String(suc).trim();
+  ST.sucursal = suc;
   ST.pedidoEnviado = false;
-  document.getElementById('pedidoPill').textContent = `Suc. ${suc}`;
-  document.getElementById('resPill').textContent    = `Suc. ${suc}`;
+  document.getElementById('pedidoPill').textContent = 'Suc. '+suc;
+  document.getElementById('resPill').textContent    = 'Suc. '+suc;
 
-  // Consultar si ya existe pedido para esta sucursal
-  if(scriptOK()){
-    const btn = document.querySelector('.btn-start');
-    const orig = btn.textContent;
-    btn.innerHTML = '<span class="spin" style="border-top-color:#fff"></span>';
-    btn.disabled = true;
-    try{
-      const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
-      if(r.ok && r.pedidos){
-        const sucNorm = suc.replace(/^0+/,''); const existe = r.pedidos.find(p=>{ const ps=String(p.sucursal).trim(); return ps===suc||ps===sucNorm||ps.replace(/^0+/,'')===sucNorm; });
-        if(existe && existe.items && existe.items.length){
-          // Cargar cantidades existentes
-          ST.cantidades = {};
-          existe.items.forEach(it=>{
-            const tipo = it.tipo;
-            const idx = ST.productos[tipo]?.findIndex(p=>norm(p)===norm(it.nombre));
-            if(idx>=0) ST.cantidades[`${tipo}-${idx}`] = it.cantidad;
-          });
-          // Mostrar aviso
-          document.getElementById('avisoSuc').textContent = suc;
-          document.getElementById('avisoTS').textContent  = existe.timestamp || '';
-          const itemsHtml = existe.items.map(it=>
-            `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
-              <span style="color:var(--ink)">${it.nombre}</span>
-              <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent)">${it.cantidad}</span>
-            </div>`
-          ).join('');
-          document.getElementById('avisoItems').innerHTML = itemsHtml;
-          btn.textContent = orig; btn.disabled = false;
-          showScreen('scAviso');
-          return;
-        }
-      }
-    }catch(e){}
-    btn.textContent = orig; btn.disabled = false;
+  if(!scriptOK()){
+    ST.cantidades = {};
+    renderGrids(); actualizarBB();
+    document.getElementById('bottomBar').style.display='flex';
+    showScreen('scPedido');
+    return;
   }
 
-  // Sin pedido previo — arrancar limpio
+  // Una sola llamada que trae config + pedido existente
+  const btn = document.querySelector('.btn-start');
+  const orig = btn.textContent;
+  btn.innerHTML = '<span class="spin" style="border-top-color:#fff;width:16px;height:16px"></span>';
+  btn.disabled = true;
+
+  try{
+    const semana = ST.semana || '';
+    const r = await fetch(`${SCRIPT_URL}?accion=getInit&semana=${encodeURIComponent(semana)}&suc=${encodeURIComponent(suc)}`).then(r=>r.json());
+
+    if(r.ok){
+      // Actualizar config si viene del servidor
+      if(r.semana) { ST.semana=r.semana; persistir(); }
+      if(r.productos && (r.productos.carne.length||r.productos.verd.length)){
+        ST.productos=r.productos; persistir();
+      }
+
+      if(r.pedidoExistente && r.pedidoExistente.items && r.pedidoExistente.items.length){
+        // Cargar cantidades del pedido existente
+        ST.cantidades = {};
+        r.pedidoExistente.items.forEach(it=>{
+          const tipo = it.tipo;
+          const idx2 = ST.productos[tipo]?.findIndex(p=>norm(p)===norm(it.nombre));
+          if(idx2>=0) ST.cantidades[`${tipo}-${idx2}`] = it.cantidad;
+        });
+        // Mostrar aviso
+        document.getElementById('avisoSuc').textContent = suc;
+        document.getElementById('avisoTS').textContent  = r.pedidoExistente.timestamp || '';
+        document.getElementById('avisoItems').innerHTML = r.pedidoExistente.items.map(it=>
+          `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
+            <span>${it.nombre}</span><span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent)">${it.cantidad}</span>
+          </div>`
+        ).join('');
+        btn.textContent=orig; btn.disabled=false;
+        showScreen('scAviso');
+        return;
+      }
+    }
+  }catch(e){ console.error(e); }
+
+  btn.textContent=orig; btn.disabled=false;
   ST.cantidades = {};
-  renderGrids();
-  actualizarBB();
+  renderGrids(); actualizarBB();
   document.getElementById('bottomBar').style.display='flex';
   showScreen('scPedido');
 }
