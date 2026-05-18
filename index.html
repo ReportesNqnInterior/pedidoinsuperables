@@ -422,7 +422,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBWX9KUgilriD5r_XKku8b56Hmicv5sEuZ5mX8YLwBIFSv_UTsSYnhOTlQ5lxCRrz28Q/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPQOrVjuMJFQu0gldKVqD5b3eqrkZylHw4ma6MbkJ4jlTNMI0LspWMGd1h7d9-f0SOLQ/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -683,23 +683,25 @@ async function enviarPedido(){
 }
 
 function marcarEnviado(tipo, ts){
-  ST.pedidoEnviado = true; ST.pedidoTS = ts;
+  ST.pedidoEnviado = true;
   const ok = tipo==='ok'||tipo==='local';
+  document.getElementById('bottomBar').style.display='none';
+  document.getElementById('resActions').style.display   = 'none';
+  document.getElementById('postActions').style.display  = 'none';
+  document.getElementById('postActions2').style.display = 'flex';
   document.getElementById('sendState').innerHTML=`
     <div class="send-state">
       <div class="send-icon ${ok?'ok':'err'}">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          ${ok?'<path d="M5 12l5 5L19 7" stroke="#1A7A3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-              :'<path d="M6 18L18 6M6 6l12 12" stroke="#C8102E" stroke-width="2" stroke-linecap="round"/>'}
+          ${ok
+            ?'<path d="M5 12l5 5L19 7" stroke="#1A7A3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+            :'<path d="M6 18L18 6M6 6l12 12" stroke="#C8102E" stroke-width="2" stroke-linecap="round"/>'}
         </svg>
       </div>
-      <h3>${ok?'Pedido enviado':'Error al enviar'}</h3>
-      <p>${ok?'Tu pedido quedó registrado':'Podés descargarlo igual y enviarlo por otro medio'}</p>
-      ${ts?`<div class="send-ts">${ts}</div>`:''}
+      <h3>${ok?'Pedido confirmado':'Error al enviar'}</h3>
+      <p>Suc. ${ST.sucursal}${ST.semana?' · '+ST.semana:''}</p>
+      ${ts?'<div class="send-ts">'+ts+'</div>':''}
     </div>`;
-  document.getElementById('resActions').style.display   = 'none';
-  document.getElementById('postActions').style.display  = 'flex';
-  document.getElementById('postActions2').style.display = 'flex';
 }
 
 function arrepentirse(){
