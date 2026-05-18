@@ -317,7 +317,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     </div>
     <div class="act-row" id="postActions2" style="display:none">
       <button class="btn-act" onclick="arrepentirse()">← Modificar pedido</button>
-      <button class="btn-act red" onclick="nuevoPedido()">Cambiar sucursal</button>
+      <button class="btn-act" onclick="nuevoPedido()">Inicio</button>
     </div>
   </div>
 
@@ -422,7 +422,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOkB2KfPOFVTpsX9nfwi26a-30fzKt3JA7qZjFOBGTWbp1yPwsrYHsHbU_iDv59d88RA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-r7jAPomn0hRmShMjVwVhzRZ2boFJD83EtzyPAnrcTwKNk1DAQAnHLReTU2dRgN9y/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -528,7 +528,7 @@ async function iniciarPedido(){
     try{
       const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
       if(r.ok && r.pedidos){
-        const existe = r.pedidos.find(p=>String(p.sucursal).trim().padStart(3,'0')===String(suc).trim().padStart(3,'0'));
+        const existe = r.pedidos.find(p=>String(p.sucursal).trim()===String(suc).trim()||String(p.sucursal).trim()===String(Number(suc)).toString());
         if(existe && existe.items && existe.items.length){
           // Cargar cantidades existentes
           ST.cantidades = {};
@@ -748,7 +748,7 @@ async function generarPDF(){
   btn.textContent=orig; btn.disabled=false;
 }
 function phRect(doc,x,y,cW,imgH){doc.setFillColor(245,244,240);doc.rect(x+2,y+2,cW-4,imgH-2,'F');doc.setFontSize(7);doc.setTextColor(180);doc.text('Sin imagen',x+cW/2,y+imgH/2,{align:'center',baseline:'middle'});}
-async function toDataURL(url, fileId){
+/*async function toDataURL_DISABLED(url, fileId){
   // Si tenemos fileId y scriptURL, usar proxy para evitar CORS
   if(fileId && scriptOK()){
     try{
@@ -762,7 +762,7 @@ async function toDataURL(url, fileId){
     i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);res(c.toDataURL('image/jpeg',.85));};
     i.onerror=rej; i.src=url;
   });
-}
+}*/
 
 function copiarTexto(){
   const c=recopilar('carne'),v=recopilar('verd');
