@@ -422,7 +422,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEhwL793S22wJOZPe0AYXJD80NCI9s3MPLhZl5PpnYvn_CJTzdi3Lm0RkkAt4Aa2TYyA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxZp2r-kYCPd0xfM8rEjy_HDIH8MBFPRGWJC66pXXKVQSRDdjeSaI8xZxJcYXQDAFo7kA/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -670,16 +670,18 @@ function verResumen(){
 }
 
 async function enviarPedido(){
+  // Asegurar que la pantalla de resumen tenga los datos actuales
+  verResumen();
   if(!scriptOK()){ toast('Sin conexión a Sheets — pedido solo local'); marcarEnviado('local','Guardado localmente'); return; }
   const btn=document.getElementById('btnEnviar');
-  btn.innerHTML='<span class="spin"></span>'; btn.disabled=true;
+  if(btn){ btn.innerHTML='<span class="spin"></span>'; btn.disabled=true; }
   const items=[...recopilar('carne'),...recopilar('verd')].map(p=>({tipo:p.tipo,nombre:p.nombre,cantidad:p.qty}));
   try{
     const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'savePedido',semana:ST.semana,sucursal:ST.sucursal,items})}).then(r=>r.json());
     if(r.ok){ marcarEnviado('ok',r.timestamp||''); toast('✓ Pedido enviado'); }
     else{ marcarEnviado('err','Error al guardar'); toast('Error: '+r.error,3500); }
   }catch(e){ marcarEnviado('err','Sin conexión'); toast('Error de red',3500); }
-  btn.innerHTML='Enviar pedido'; btn.disabled=false;
+  if(btn){ btn.innerHTML='Enviar pedido'; btn.disabled=false; }
 }
 
 function marcarEnviado(tipo, ts){
@@ -705,12 +707,13 @@ function marcarEnviado(tipo, ts){
 }
 
 function arrepentirse(){
-  // Volver al pedido manteniendo las cantidades actuales para modificar
   ST.pedidoEnviado = false;
   document.getElementById('resActions').style.display   = 'flex';
   document.getElementById('postActions').style.display  = 'none';
   document.getElementById('postActions2').style.display = 'none';
   document.getElementById('sendState').innerHTML = '';
+  document.getElementById('bottomBar').style.display = 'flex';
+  renderBottomResumen();
   showScreen('scPedido');
 }
 
