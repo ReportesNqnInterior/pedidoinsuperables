@@ -317,6 +317,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     </div>
     <div class="act-row" id="postActions2" style="display:none">
       <button class="btn-act" onclick="arrepentirse()">← Modificar pedido</button>
+      <button class="btn-act" onclick="generarPDF()">⬇ Descargar PDF</button>
       <button class="btn-act" onclick="nuevoPedido()">Inicio</button>
     </div>
   </div>
@@ -422,7 +423,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-r7jAPomn0hRmShMjVwVhzRZ2boFJD83EtzyPAnrcTwKNk1DAQAnHLReTU2dRgN9y/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGZkFmxnU29w_vuK4BLNHfTBXroWGBL8oMWC3MX3_0JUqKFyFVdRwOrevmAZw0THgBFA/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -513,6 +514,13 @@ async function iniciarPedido(){
   const suc = document.getElementById('sucInput').value.trim();
   if(!suc){ document.getElementById('sucInput').focus(); return; }
   if(!ST.productos.carne.length && !ST.productos.verd.length){ toast('El admin aún no cargó los productos'); return; }
+  // Asegurar que la semana esté cargada
+  if(!ST.semana && scriptOK()){
+    try{
+      const rc=await fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json());
+      if(rc.ok&&rc.semana){ ST.semana=rc.semana; persistir(); }
+    }catch(e){}
+  }
 
   ST.sucursal = String(suc).trim();
   ST.pedidoEnviado = false;
@@ -528,7 +536,7 @@ async function iniciarPedido(){
     try{
       const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
       if(r.ok && r.pedidos){
-        const existe = r.pedidos.find(p=>String(p.sucursal).trim()===String(suc).trim()||String(p.sucursal).trim()===String(Number(suc)).toString());
+        const sucNorm = suc.replace(/^0+/,''); const existe = r.pedidos.find(p=>{ const ps=String(p.sucursal).trim(); return ps===suc||ps===sucNorm||ps.replace(/^0+/,'')===sucNorm; });
         if(existe && existe.items && existe.items.length){
           // Cargar cantidades existentes
           ST.cantidades = {};
