@@ -312,7 +312,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
       <button class="btn-act primary" id="btnEnviar" onclick="enviarPedido()">Enviar pedido</button>
     </div>
     <div class="act-row" id="postActions" style="display:none">
-      <button class="btn-act" onclick="generarPDF()">⬇ Descargar PDF</button>
       <button class="btn-act" onclick="copiarTexto()">Copiar texto</button>
     </div>
     <div class="act-row" id="postActions2" style="display:none">
@@ -423,7 +422,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGZkFmxnU29w_vuK4BLNHfTBXroWGBL8oMWC3MX3_0JUqKFyFVdRwOrevmAZw0THgBFA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBWX9KUgilriD5r_XKku8b56Hmicv5sEuZ5mX8YLwBIFSv_UTsSYnhOTlQ5lxCRrz28Q/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 const KEYWORDS_CARNE = ['BEST','ESTANCIAS','BONDIOLA','CARRE','BIFE','PECETO','CUADRADA','CUADRIL','CARNAZA','VACIO','TAPA DE ASADO','MILANESA CARNE','CHORIZO PARRILLERO','CARNE PICADA','MEDALLONES','CERDO','PREPARADO PARA'];
@@ -474,6 +473,7 @@ function showScreen(id){
 function renderBottomResumen(){
   document.getElementById('bottomBar').innerHTML = `
     <div class="bb-info"><div class="bb-count">Suc. ${ST.sucursal}</div><div class="bb-label">${ST.semana||''}</div></div>
+    <button class="btn-bb outline" onclick="nuevoPedido()">Inicio</button>
     <button class="btn-bb outline" onclick="showScreen('scPedido')">← Editar</button>
     <button class="btn-bb" onclick="enviarPedido()">Confirmar ✓</button>`;
 }
@@ -722,38 +722,65 @@ function nuevoPedido(){
 //  PDF
 // ══════════════════════════════════════════════
 async function generarPDF(){
-  const btn=document.querySelector('#postActions .btn-act');
-  const orig=btn.textContent; btn.textContent='Generando…'; btn.disabled=true;
   try{
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({unit:'mm',format:'a4'});
-    const W=210,M=14,cols=2,gap=6,cW=(W-M*2-gap*(cols-1))/cols,imgH=40,rowH=imgH+22;
-    let x=M,y=M,col=0;
-    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(200,16,46);
-    doc.text('SOLICITUD DE CARTELERÍA',M,y+5);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100);
-    doc.text(`Suc. ${ST.sucursal}${ST.semana?' · '+ST.semana:''}`,M,y+11);
-    y+=20;
+    const M=14, W=210, rowH=8;
+    let y=M;
+
+    // Encabezado rojo
+    doc.setFillColor(200,16,46); doc.rect(0,0,W,22,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(255,255,255);
+    doc.text('SOLICITUD DE CARTELERÍA',M,10);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text('Suc. '+ST.sucursal+(ST.semana?' · '+ST.semana:''),M,17);
+    y=28;
+
     const todos=[...recopilar('carne'),...recopilar('verd')];
-    for(const p of todos){
-      if(col===cols){col=0;x=M;y+=rowH+5;}
-      if(y+rowH>282){doc.addPage();y=M;}
-      doc.setDrawColor(220); doc.setLineWidth(.3); doc.roundedRect(x,y,cW,rowH,2,2);
-      const img=getImg(p.nombre,p.tipo);
-      if(img){try{const d=await toDataURL(img.url,img.fileId);doc.addImage(d,'JPEG',x+2,y+2,cW-4,imgH-2,'','FAST');}catch(e){phRect(doc,x,y,cW,imgH);}}
-      else phRect(doc,x,y,cW,imgH);
-      doc.setFontSize(7); doc.setTextColor(50); doc.setFont('helvetica','normal');
-      doc.text(doc.splitTextToSize(p.nombre,cW-4)[0],x+2,y+imgH+6);
-      doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(200,16,46);
-      doc.text(String(p.qty),x+cW-2,y+imgH+7,{align:'right'});
-      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(150);
-      doc.text('cant.',x+cW-2,y+imgH+12,{align:'right'});
-      x+=cW+gap; col++;
-    }
-    doc.save(`carteleria-suc${ST.sucursal}.pdf`);
-    toast('✓ PDF descargado');
-  }catch(e){toast('Error al generar PDF');}
-  btn.textContent=orig; btn.disabled=false;
+
+    // Encabezado tabla
+    doc.setFillColor(26,25,20); doc.rect(M,y,W-M*2,rowH,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
+    doc.text('ARTÍCULO',M+2,y+rowH-2);
+    doc.setFillColor(200,16,46); doc.rect(W-M-24,y,24,rowH,'F');
+    doc.text('CANT',W-M-12,y+rowH-2,{align:'center'});
+    y+=rowH;
+
+    let lastTipo='';
+    todos.forEach(function(p,pi){
+      if(y>280){doc.addPage();y=M;}
+      if(p.tipo!==lastTipo){
+        doc.setFillColor(240,237,230); doc.rect(M,y,W-M*2,6,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(100,98,94);
+        doc.text(p.tipo==='carne'?'CARNICERIA':'VERDULERIA & FRUTAS',M+2,y+4.5);
+        y+=6; lastTipo=p.tipo;
+      }
+      if(y>280){doc.addPage();y=M;}
+      var bg=pi%2===0?[255,255,255]:[250,249,246];
+      doc.setFillColor(bg[0],bg[1],bg[2]); doc.rect(M,y,W-M*2,rowH,'F');
+      doc.setDrawColor(230); doc.setLineWidth(.15); doc.line(M,y+rowH,M+W-M*2,y+rowH);
+      var esPLUS=ST.plus[norm(p.nombre)]===true;
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(26,25,20);
+      var nombre=p.nombre.length>40?p.nombre.substring(0,38)+'...':p.nombre;
+      doc.text(nombre+' ('+(esPLUS?'PLUS':'NO PLUS')+')',M+2,y+rowH-2);
+      doc.setFillColor(255,240,242); doc.rect(W-M-24,y+1,22,rowH-2,'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(200,16,46);
+      doc.text(String(p.qty),W-M-13,y+rowH-1.5,{align:'center'});
+      y+=rowH;
+    });
+
+    // Total
+    y+=2;
+    doc.setFillColor(26,25,20); doc.rect(M,y,W-M*2,9,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
+    doc.text('TOTAL',M+2,y+6.5);
+    var totalCant=todos.reduce(function(a,p){return a+p.qty;},0);
+    doc.setFillColor(200,16,46); doc.rect(W-M-24,y,24,9,'F');
+    doc.setFontSize(11); doc.text(String(totalCant),W-M-12,y+6.5,{align:'center'});
+
+    doc.save('carteleria-suc'+ST.sucursal+'.pdf');
+    toast('PDF descargado');
+  }catch(e){ console.error(e); toast('Error: '+e.message); }
 }
 function phRect(doc,x,y,cW,imgH){doc.setFillColor(245,244,240);doc.rect(x+2,y+2,cW-4,imgH-2,'F');doc.setFontSize(7);doc.setTextColor(180);doc.text('Sin imagen',x+cW/2,y+imgH/2,{align:'center',baseline:'middle'});}
 /*async function toDataURL_DISABLED(url, fileId){
