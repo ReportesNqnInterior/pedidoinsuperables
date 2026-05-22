@@ -908,7 +908,7 @@ function cargarExcel(input){
       if(esFormatoA){
         for(const r of data){
           const v=String(r[3]||'').trim();
-          if(v.length>3 && !EXCLUIR.includes(v) && !/^\d/.test(v) && !v.includes('/') && !v.includes('del ')){
+          if(v.length>3 && !EXCLUIR.includes(v) && !/^\d/.test(v) && !/\d+\/\d+/.test(v) && !v.includes('del ')){
             cSet.add(v);
           }
         }
