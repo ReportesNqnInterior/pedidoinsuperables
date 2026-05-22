@@ -221,7 +221,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .plus-opt.active-no{background:#E8F5EC;color:#1A7A3C}
 .plus-opt.active-yes{background:#FBE9EC;color:#C8102E}
 
-
 /* ── Tabla consolidada ── */
 .cons-wrap{overflow-x:auto;margin-bottom:1rem}
 .cons-table{border-collapse:collapse;font-size:11px;white-space:nowrap;width:100%}
@@ -475,7 +474,6 @@ const isVerd = n => KEYWORDS_VERD.some(k => n.toUpperCase().includes(k));
 function getImg(nombre, tipo){
   const esPLUS = ST.plus[norm(nombre)] === true;
   const sub = esPLUS ? 'PLUS' : 'NO PLUS';
-  // Buscar imagen con subcarpeta correcta, o fallback sin subcarpeta
   return ST.imagenes[tipo]?.find(i => norm(i.nombre)===norm(nombre) && i.sub===sub)
       || ST.imagenes[tipo]?.find(i => norm(i.nombre)===norm(nombre));
 }
@@ -580,7 +578,6 @@ async function iniciarPedido(){
     return;
   }
 
-  // Una sola llamada que trae config + pedido existente
   const btn = document.querySelector('.btn-start');
   const orig = btn.textContent;
   btn.innerHTML = '<span class="spin" style="border-top-color:#fff;width:16px;height:16px"></span>';
@@ -591,21 +588,18 @@ async function iniciarPedido(){
     const r = await fetch(`${SCRIPT_URL}?accion=getInit&semana=${encodeURIComponent(semana)}&suc=${encodeURIComponent(suc)}`).then(r=>r.json());
 
     if(r.ok){
-      // Actualizar config si viene del servidor
       if(r.semana) { ST.semana=r.semana; persistir(); }
       if(r.productos && (r.productos.carne.length||r.productos.verd.length)){
         ST.productos=r.productos; persistir();
       }
 
       if(r.pedidoExistente && r.pedidoExistente.items && r.pedidoExistente.items.length){
-        // Cargar cantidades del pedido existente
         ST.cantidades = {};
         r.pedidoExistente.items.forEach(it=>{
           const tipo = it.tipo;
           const idx2 = ST.productos[tipo]?.findIndex(p=>norm(p)===norm(it.nombre));
           if(idx2>=0) ST.cantidades[`${tipo}-${idx2}`] = it.cantidad;
         });
-        // Mostrar aviso
         document.getElementById('avisoSuc').textContent = suc;
         document.getElementById('avisoTS').textContent  = r.pedidoExistente.timestamp || '';
         document.getElementById('avisoItems').innerHTML = r.pedidoExistente.items.map(it=>
@@ -628,7 +622,6 @@ async function iniciarPedido(){
 }
 
 function continuarConPedido(){
-  // Las cantidades ya fueron cargadas en iniciarPedido
   renderGrids();
   actualizarBB();
   document.getElementById('bottomBar').style.display='flex';
@@ -646,8 +639,6 @@ function renderGrids(){
 function renderGrid(id, lista, tipo){
   const c=document.getElementById(id);
   if(!lista.length){ c.innerHTML='<p style="font-size:13px;color:var(--ink3);padding:1rem 0">Sin productos</p>'; return; }
-  const prev={};
-  lista.forEach((_,i)=>{ const el=document.getElementById(`qv-${tipo}-${i}`); if(el) prev[i]=el.textContent; });
   c.innerHTML=lista.map((p,i)=>{
     const key=`${tipo}-${i}`, qty=ST.cantidades[key]||0, img=getImg(p,tipo);
     return `<div class="prod-card ${qty>0?'selected':''}" id="pc-${key}">
@@ -725,7 +716,6 @@ function verResumen(){
 }
 
 async function enviarPedido(){
-  // Asegurar que la pantalla de resumen tenga los datos actuales
   verResumen();
   if(!scriptOK()){ toast('Sin conexión a Sheets — pedido solo local'); marcarEnviado('local','Guardado localmente'); return; }
   const btn=document.getElementById('btnEnviar');
@@ -788,7 +778,6 @@ async function generarPDF(){
     const M=14, W=210, rowH=8;
     let y=M;
 
-    // Encabezado rojo
     doc.setFillColor(200,16,46); doc.rect(0,0,W,22,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(255,255,255);
     doc.text('SOLICITUD DE CARTELERÍA',M,10);
@@ -798,7 +787,6 @@ async function generarPDF(){
 
     const todos=[...recopilar('carne'),...recopilar('verd')];
 
-    // Encabezado tabla
     doc.setFillColor(26,25,20); doc.rect(M,y,W-M*2,rowH,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
     doc.text('ARTÍCULO',M+2,y+rowH-2);
@@ -829,7 +817,6 @@ async function generarPDF(){
       y+=rowH;
     });
 
-    // Total
     y+=2;
     doc.setFillColor(26,25,20); doc.rect(M,y,W-M*2,9,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
@@ -842,22 +829,6 @@ async function generarPDF(){
     toast('PDF descargado');
   }catch(e){ console.error(e); toast('Error: '+e.message); }
 }
-function phRect(doc,x,y,cW,imgH){doc.setFillColor(245,244,240);doc.rect(x+2,y+2,cW-4,imgH-2,'F');doc.setFontSize(7);doc.setTextColor(180);doc.text('Sin imagen',x+cW/2,y+imgH/2,{align:'center',baseline:'middle'});}
-/*async function toDataURL_DISABLED(url, fileId){
-  // Si tenemos fileId y scriptURL, usar proxy para evitar CORS
-  if(fileId && scriptOK()){
-    try{
-      const r = await fetch(`${SCRIPT_URL}?accion=getImagen&fileId=${fileId}`).then(r=>r.json());
-      if(r.ok) return `data:${r.mime};base64,${r.data}`;
-    }catch(e){}
-  }
-  // Fallback: canvas directo
-  return new Promise((res,rej)=>{
-    const i=new Image(); i.crossOrigin='anonymous';
-    i.onload=()=>{const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);res(c.toDataURL('image/jpeg',.85));};
-    i.onerror=rej; i.src=url;
-  });
-}*/
 
 function copiarTexto(){
   const c=recopilar('carne'),v=recopilar('verd');
@@ -908,11 +879,9 @@ function cargarExcel(input){
     try{
       const wb=XLSX.read(ev.target.result,{type:'array'});
 
-      // Hoja principal: primera que no sea FYV
       const mainName = wb.SheetNames.find(n=>n.toUpperCase()!=='FYV') || wb.SheetNames[0];
       const data = XLSX.utils.sheet_to_json(wb.Sheets[mainName],{header:1,defval:''});
 
-      // Hoja FYV de verdulería (formato Ofertas Carne)
       const fyvName = wb.SheetNames.find(n=>n.toUpperCase()==='FYV');
       const fyvData = fyvName ? XLSX.utils.sheet_to_json(wb.Sheets[fyvName],{header:1,defval:''}) : [];
 
@@ -926,9 +895,6 @@ function cargarExcel(input){
         if(s0.toUpperCase().includes('SEMANA')&&s0.includes('del')){ sem=s0.trim(); }
       }
 
-      // ── Detectar formato ──
-      // Formato A (Ofertas Carne): hoja FYV con datos + col D tiene genéricos, col E tiene códigos
-      // Formato B (SV):            col E tiene genéricos, verdura mezclada
       const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION'];
 
       const esFormatoA = fyvData.length > 2 && data.some(r=>{
@@ -951,14 +917,13 @@ function cargarExcel(input){
           if(v.length>2 && v.toUpperCase()!=='DESC' && v.toUpperCase()!=='DESCRIPCION') vSet.add(v);
         }
       } else {
-  // Formato B (SV): col E = genéricos, o col D si E está vacía/es código
-  for(const r of data){
-    const colE = String(r[4]||'').trim();
-    const colD = String(r[3]||'').trim();
-    // Usar col D si col E es vacía o numérica (código de artículo)
-    const v = (colE.length>3 && !/^\d{4,}/.test(colE)) ? colE : 
-              (colD.length>3 && !/^\d{4,}/.test(colD) && !colD.includes('/') && !colD.includes(' al ')) ? colD : '';
-    if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v)){
+        // Formato B (SV): col E = genéricos, o col D si E está vacía/es código
+        for(const r of data){
+          const colE = String(r[4]||'').trim();
+          const colD = String(r[3]||'').trim();
+          // Usar colE si tiene contenido válido (no numérico largo), sino intentar colD
+          const v = (colE.length>3 && !/^\d{4,}/.test(colE)) ? colE :
+                    (colD.length>3 && !/^\d{4,}/.test(colD) && !colD.includes('/') && !colD.includes(' al ') && !EXCLUIR.includes(colD)) ? colD : '';
           if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v) && !/^\d{4,}/.test(v)){
             if(isVerd(v)) vSet.add(v); else cSet.add(v);
           }
@@ -1086,7 +1051,6 @@ async function syncDrive(){
 }
 
 // ── Tabla de pedidos ────────────────────────
-// Estado de pedidos cacheado para exportar
 let _pedidosCache = [];
 
 async function cargarPedidos(){
@@ -1107,23 +1071,18 @@ async function cargarPedidos(){
 }
 
 function renderTablaConsolidada(pedidos){
-  // Recopilar todas las sucursales ordenadas
   const sucs=[...new Set(pedidos.map(p=>p.sucursal))].sort((a,b)=>String(a).padStart(6,'0').localeCompare(String(b).padStart(6,'0')));
-  // Mapa sucursal → items
   const bySuc={};
   pedidos.forEach(p=>{ bySuc[p.sucursal]={}; p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; }); });
-  // Todos los productos en orden: primero carne, luego verd
   const prods=[
     ...ST.productos.carne.map(n=>({nombre:n,tipo:'carne'})),
     ...ST.productos.verd.map(n=>({nombre:n,tipo:'verd'}))
   ];
   if(!prods.length){
-    // Si no hay productos configurados, armar lista desde los pedidos
     const allProds=new Set(); pedidos.forEach(p=>p.items.forEach(it=>allProds.add(it.nombre)));
     allProds.forEach(n=>prods.push({nombre:n,tipo:'?'}));
   }
 
-  // Cabecera
   let html=`<div class="cons-wrap"><table class="cons-table">
     <thead>
       <tr>
@@ -1133,7 +1092,6 @@ function renderTablaConsolidada(pedidos){
       </tr>
     </thead><tbody>`;
 
-  // Separador carne
   const tieneCarne=prods.some(p=>p.tipo==='carne');
   const tieneVerd=prods.some(p=>p.tipo==='verd');
   if(tieneCarne&&tieneVerd){
@@ -1185,12 +1143,10 @@ function exportarExcel(){
     p.items.forEach(it=>{ bySuc[p.sucursal][norm(it.nombre)]=it.cantidad; });
   });
 
-  // ── Estilos ──
   const ST_TITULO = { font:{bold:true,sz:12,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'left'} };
   const ST_HEAD_ART = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'left'}, border:{bottom:{style:'thin',color:{rgb:'444444'}}} };
   const ST_HEAD_TOT = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'C8102E'}}, alignment:{horizontal:'center'} };
   const ST_HEAD_SUC = { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1A1914'}}, alignment:{horizontal:'center'} };
-  const ST_SEP      = { font:{bold:false,sz:9,color:{rgb:'888780'}}, fill:{fgColor:{rgb:'F0EDE6'}}, alignment:{horizontal:'left'} };
   const ST_ART      = { font:{sz:10}, fill:{fgColor:{rgb:'FFFFFF'}}, alignment:{horizontal:'left'} };
   const ST_TOT_VAL  = { font:{bold:true,sz:11,color:{rgb:'C8102E'}}, fill:{fgColor:{rgb:'FFF0F0'}}, alignment:{horizontal:'center'} };
   const ST_TOT_ZERO = { font:{sz:10,color:{rgb:'CCCCCC'}}, fill:{fgColor:{rgb:'FFFFFF'}}, alignment:{horizontal:'center'} };
@@ -1202,20 +1158,16 @@ function exportarExcel(){
   function hacerHoja(lista){
     if(!lista.length) return XLSX.utils.aoa_to_sheet([]);
     const ncols = 2 + sucs.length;
-
-    // Armar filas como arrays de celdas con estilo
     const wsData = [];
 
-    // Fila 0: título
     const tituloRow = [xc(`V-SEM ${ST.semana}`, ST_TITULO)];
     for(let i=1;i<ncols;i++) tituloRow.push(xc('',ST_TITULO));
     wsData.push(tituloRow);
 
-    // Fila 1: encabezados
     const headRow = [xc('ART',ST_HEAD_ART), xc('TOTAL',ST_HEAD_TOT), ...sucs.map(s=>xc(s,ST_HEAD_SUC))];
     wsData.push(headRow);
 
-    lista.forEach((p,pi)=>{
+    lista.forEach((p)=>{
       const label=`${p} (${ST.plus[norm(p)]?'PLUS':'NO PLUS'})`;
       const vals=sucs.map(s=>(bySuc[s]&&bySuc[s][norm(p)])||0);
       const total=vals.reduce((a,b)=>a+b,0);
@@ -1227,7 +1179,6 @@ function exportarExcel(){
       wsData.push(row);
     });
 
-    // Convertir a worksheet
     const ws = {};
     wsData.forEach((row,r)=>{
       row.forEach((cell,c)=>{
@@ -1252,14 +1203,12 @@ function exportarExcel(){
 async function limpiarConfig(){
   if(!confirm('Esto va a descargar el consolidado de la semana y luego borrar toda la configuración. ¿Continuás?')) return;
 
-  // 1. Descargar consolidado si hay pedidos
   if(scriptOK()){
     try{
       const r = await fetch(`${SCRIPT_URL}?accion=getPedidos&semana=${encodeURIComponent(ST.semana)}`).then(r=>r.json());
       if(r.ok && r.pedidos && r.pedidos.length){
         _pedidosCache = r.pedidos;
         exportarExcel();
-        // Esperar un momento para que el archivo se descargue
         await new Promise(res=>setTimeout(res,1500));
       } else {
         toast('Sin pedidos registrados — solo se limpiará la config');
@@ -1274,7 +1223,6 @@ async function limpiarConfig(){
     await new Promise(res=>setTimeout(res,1500));
   }
 
-  // 2. Limpiar todo
   ST.productos={carne:[],verd:[]};
   ST.semana='';
   ST.plus={};
