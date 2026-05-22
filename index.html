@@ -951,9 +951,14 @@ function cargarExcel(input){
           if(v.length>2 && v.toUpperCase()!=='DESC' && v.toUpperCase()!=='DESCRIPCION') vSet.add(v);
         }
       } else {
-        // Formato B (SV): col E = todos los genéricos
-        for(const r of data){
-          const v=String(r[4]||'').trim();
+  // Formato B (SV): col E = genéricos, o col D si E está vacía/es código
+  for(const r of data){
+    const colE = String(r[4]||'').trim();
+    const colD = String(r[3]||'').trim();
+    // Usar col D si col E es vacía o numérica (código de artículo)
+    const v = (colE.length>3 && !/^\d{4,}/.test(colE)) ? colE : 
+              (colD.length>3 && !/^\d{4,}/.test(colD) && !colD.includes('/') && !colD.includes(' al ')) ? colD : '';
+    if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v)){
           if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v) && !/^\d{4,}/.test(v)){
             if(isVerd(v)) vSet.add(v); else cSet.add(v);
           }
