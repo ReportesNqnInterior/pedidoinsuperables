@@ -923,7 +923,7 @@ function cargarExcel(input){
           const colD = String(r[3]||'').trim();
           // Usar colE si tiene contenido válido (no numérico largo), sino intentar colD
           const v = (colE.length>3 && !/^\d{4,}/.test(colE)) ? colE :
-                    (colD.length>3 && !/^\d{4,}/.test(colD) && !colD.includes('/') && !colD.includes(' al ') && !EXCLUIR.includes(colD)) ? colD : '';
+                    (colD.length>3 && !/^\d{4,}/.test(colD) && !/\d+\/\d+/.test(colD) && !colD.includes(' al ') && !EXCLUIR.includes(colD)) ? colD : '';
           if(v.length>3 && !EXCLUIR.includes(v) && !/^=/.test(v) && !/^\d{4,}/.test(v)){
             if(isVerd(v)) vSet.add(v); else cSet.add(v);
           }
