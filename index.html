@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cartelería · Sucursales Neuquén & Río Negro</title>
+<title>Cartelería · Sucursales Neuquén</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="xlsx.full.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
@@ -251,7 +251,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <svg viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="7" height="7" rx="1"/></svg>
   </div>
   <h1>Cartelería</h1>
-  <p>Sucursales Neuquén & Río Negro</p>
+  <p>Sucursales Neuquén</p>
   <div class="splash-dots"><span></span><span></span><span></span></div>
   <div class="splash-msg" id="splashMsg">Cargando ofertas...</div>
 </div>
@@ -971,14 +971,15 @@ function cargarExcel(input){
       // Formato B (SV):            col E tiene genéricos, verdura mezclada
       const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION','COD.','DESCRIPCION','NQN CIUDAD','NQN INTERIOR','RIO NEGRO'];
 
-      // Formato A: hoja principal NO es "Mail Centro/SV" Y col D tiene genéricos con col E numérica
-      const esSV = mainName.toUpperCase().includes('MAIL') || mainName.toUpperCase().includes('SV');
-      const esFormatoA = !esSV && fyvData.length > 2 && data.some(r=>{
+      // Detectar formato por contenido:
+      // Formato A: col D tiene genérico de texto Y col E tiene código numérico
+      // Formato B (SV viejo): col E tiene genérico, col F tiene código
+      const esFormatoA = data.some(r=>{
         const colD = String(r[3]||'').trim();
         const colE = String(r[4]||'').trim();
         return colD.length>4 && !EXCLUIR.includes(colD) && !/^\d/.test(colD)
-          && !/\d\/\d/.test(colD) && !colD.includes(' al ')
-          && (colE===''||/^\d/.test(colE));
+          && !/\d\/\d/.test(colD) && !colD.includes(' al ') && !colD.includes('del ')
+          && colE.length>0 && /^\d/.test(colE);
       });
 
       if(esFormatoA){
