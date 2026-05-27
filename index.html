@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cartelería · Sucursales Neuquén</title>
+<title>Cartelería · Sucursales Neuquén & Río Negro</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="xlsx.full.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
@@ -251,7 +251,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <svg viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="7" height="7" rx="1"/></svg>
   </div>
   <h1>Cartelería</h1>
-  <p>Sucursales Neuquén</p>
+  <p>Sucursales Neuquén & Río Negro</p>
   <div class="splash-dots"><span></span><span></span><span></span></div>
   <div class="splash-msg" id="splashMsg">Cargando ofertas...</div>
 </div>
@@ -266,7 +266,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
       </div>
       <div>
         <div class="brand-name">Cartelería</div>
-        <div class="brand-sub">Sucursales Neuquén</div>
+        <div class="brand-sub">Neuquén & Río Negro</div>
       </div>
     </div>
     <button class="admin-trigger" onclick="abrirAdmin()" title="Admin">
@@ -1214,6 +1214,7 @@ function exportarExcel(){
   if(!_pedidosCache.length){toast('Sin datos');return;}
 
   const ORDEN_ZONAS = ['Neuquén Ciudad','Neuquén Interior','Río Negro','Sin zona'];
+const ZONA_LABELS = {'Neuquén Ciudad':'Neuquén','Neuquén Interior':'Neuquén','Río Negro':'Río Negro','Sin zona':'Sin zona'};
 
   // Agrupar pedidos por zona
   const porZona = {};
