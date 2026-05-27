@@ -569,11 +569,16 @@ function initInicio(){
 
 async function cargarConfigRemota(){
   try{
-    const r = await fetch(`${SCRIPT_URL}?accion=getAll&semana=`).then(r=>r.json());
-    if(!r.ok) return;
-    if(r.semana)    ST.semana    = r.semana;
-    if(r.productos) ST.productos = r.productos;
-    if(r.imagenes)  ST.imagenes  = r.imagenes;
+    const [rc, ri] = await Promise.all([
+      fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json()),
+      fetch(`${SCRIPT_URL}?accion=getImagenes`).then(r=>r.json())
+    ]);
+    if(rc.ok){
+      if(rc.semana) ST.semana = rc.semana;
+      if(rc.productos && (rc.productos.carne.length||rc.productos.verd.length))
+        ST.productos = rc.productos;
+    }
+    if(ri.ok && ri.imagenes) ST.imagenes = ri.imagenes;
     persistir();
   }catch(e){}
 }
@@ -964,7 +969,7 @@ function cargarExcel(input){
       // ── Detectar formato ──
       // Formato A (Ofertas Carne): hoja FYV con datos + col D tiene genéricos, col E tiene códigos
       // Formato B (SV):            col E tiene genéricos, verdura mezclada
-      const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION'];
+      const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION','COD.','DESCRIPCION','NQN CIUDAD','NQN INTERIOR','RIO NEGRO'];
 
       // Formato A: hoja principal NO es "Mail Centro/SV" Y col D tiene genéricos con col E numérica
       const esSV = mainName.toUpperCase().includes('MAIL') || mainName.toUpperCase().includes('SV');
