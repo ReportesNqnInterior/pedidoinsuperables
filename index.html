@@ -951,19 +951,21 @@ function cargarExcel(input){
       // ── Detectar semana ──
       for(let ri=0;ri<Math.min(data.length,10);ri++){
         const r=data[ri];
-        const s0=String(r[0]||'').trim(), s1=String(r[1]||'').trim();
-        const s2=String(r[2]||'').trim(), s3=String(r[3]||'').trim();
-        // Formato SV: col B = "SEMANA 21", col D = "del X al Y"
-        if(s1.toUpperCase().includes('SEMANA') && s3.includes('del') && s3.includes('al')){
-          const numSem = s1.replace(/[^0-9]/g,'').trim();
-          sem = (numSem ? 'Semana '+numSem+' · ' : '') + s3.trim();
+        // Buscar en todas las columnas de la fila
+        let numSem='', fecha='';
+        for(let ci=0;ci<r.length;ci++){
+          const v=String(r[ci]||'').trim();
+          if(v.toUpperCase().includes('SEMANA') && /\d/.test(v)){
+            numSem = v.replace(/[^0-9]/g,'').trim();
+          }
+          if(v.includes('del') && v.includes('al') && v.includes('/')){
+            fecha = v.trim();
+          }
+        }
+        if(fecha){
+          sem = (numSem ? 'Semana '+numSem+' · ' : '') + fecha;
           break;
         }
-        // Formato Ofertas: col C = "del X al Y"
-        if(s2.includes('del')&&s2.includes('al')){ sem=s2.trim(); break; }
-        // Fallback
-        if(s1.toUpperCase().includes('SEMANA')&&s1.includes('del')){ sem=s1.trim(); break; }
-        if(s3.includes('del')&&s3.includes('al')){ sem=s3.trim(); }
       }
 
       // ── Detectar formato ──
