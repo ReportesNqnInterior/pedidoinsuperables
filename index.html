@@ -1,8 +1,4 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Cartelería · Sucursales Neuquén</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="xlsx.full.min.js"></script>
@@ -966,18 +962,22 @@ function cargarExcel(input){
       // Formato B (SV):            col E tiene genéricos, verdura mezclada
       const EXCLUIR = ['GENERICO','ZONA DE INSERT','Nº Zona Insert','CENTRO','Período','NQN - RN','NQN','RN','DESCRIPCION'];
 
-      const esFormatoA = fyvData.length > 2 && data.some(r=>{
+      // Formato A: hoja principal NO es "Mail Centro/SV" Y col D tiene genéricos con col E numérica
+      const esSV = mainName.toUpperCase().includes('MAIL') || mainName.toUpperCase().includes('SV');
+      const esFormatoA = !esSV && fyvData.length > 2 && data.some(r=>{
         const colD = String(r[3]||'').trim();
         const colE = String(r[4]||'').trim();
         return colD.length>4 && !EXCLUIR.includes(colD) && !/^\d/.test(colD)
-          && !colD.includes('/') && !colD.includes(' al ')
+          && !/\d\/\d/.test(colD) && !colD.includes(' al ')
           && (colE===''||/^\d/.test(colE));
       });
 
       if(esFormatoA){
         for(const r of data){
           const v=String(r[3]||'').trim();
-          if(v.length>3 && !EXCLUIR.includes(v) && !/^\d/.test(v) && !v.includes('/') && !v.includes('del ')){
+          // Solo excluir / si es entre dígitos (fecha), no S/H
+          const esFecha = /\d\/\d/.test(v);
+          if(v.length>3 && !EXCLUIR.includes(v) && !/^\d/.test(v) && !esFecha && !v.includes('del ')){
             cSet.add(v);
           }
         }
