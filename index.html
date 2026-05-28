@@ -447,7 +447,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbziRV-NacXyGmPL0vFb_Pejx5U3YCxuBNUkgy8wiUaIFR6FAijzPnw6f-LZ_es3w8IOyw/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPD60oc3heSiK7YPqIUpewtWvSk03sCto48JB6O0H2_QoNXDjgqcATyDqe-Xw1TlyziQ/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 
@@ -1337,7 +1337,16 @@ async function limpiarConfig(){
     await new Promise(res=>setTimeout(res,1500));
   }
 
-  // 2. Limpiar todo
+  // 2. Archivar pedidos en Historial y limpiar hoja Pedidos
+  if(scriptOK()){
+    try{
+      const ra = await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'archivarPedidos',semana:ST.semana})}).then(r=>r.json());
+      if(ra.ok) toast(`✓ ${ra.archivados} filas archivadas en Historial`);
+    }catch(e){}
+    await new Promise(res=>setTimeout(res,800));
+  }
+
+  // 3. Limpiar config
   ST.productos={carne:[],verd:[]};
   ST.semana='';
   ST.plus={};
@@ -1351,7 +1360,7 @@ async function limpiarConfig(){
   if(scriptOK()){
     fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'saveConfig',semana:'',productos:{carne:[],verd:[]}})}).catch(()=>{});
   }
-  toast('✓ Consolidado descargado y configuración limpiada');
+  toast('✓ Listo — pedidos archivados y config limpiada');
 }
 
 // ══════════════════════════════════════════════
