@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cartelería · Sucursales Neuquén & Río Negro</title>
+<title>Cartelería · Sucursales Neuquén</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="xlsx.full.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
@@ -18,7 +18,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .shell{max-width:680px;margin:0 auto;padding:2rem 1rem 5rem}
 
 /* top bar */
-.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);position:relative;z-index:999}
 .brand{display:flex;align-items:center;gap:10px}
 .brand-logo{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
 .brand-logo svg{width:20px;height:20px;fill:#fff}
@@ -212,6 +212,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .splash-msg{font-size:12px;color:rgba(255,255,255,.5);margin-top:16px;font-family:'DM Mono',monospace;letter-spacing:.02em;min-height:18px}
 @keyframes dotpulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 
+
+.blocked-screen{position:fixed;inset:0;background:var(--bg);z-index:998;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center}
+.blocked-icon{width:64px;height:64px;border-radius:50%;background:var(--accent-l);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:28px}
+.blocked-screen h2{font-size:20px;font-weight:600;margin-bottom:.5rem}
+.blocked-screen p{font-size:14px;color:var(--ink2);margin-bottom:.5rem}
+.blocked-screen .blocked-next{font-size:12px;font-family:'DM Mono',monospace;color:var(--green);margin-top:.75rem;background:var(--green-l);padding:6px 16px;border-radius:99px;display:inline-block}
+
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 
@@ -251,7 +258,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <svg viewBox="0 0 20 20"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="7" height="7" rx="1"/></svg>
   </div>
   <h1>Cartelería</h1>
-  <p>Sucursales Neuquén & Río Negro</p>
+  <p>Sucursales Neuquén</p>
   <div class="splash-dots"><span></span><span></span><span></span></div>
   <div class="splash-msg" id="splashMsg">Cargando ofertas...</div>
 </div>
@@ -532,6 +539,40 @@ function persistir(){
 // ══════════════════════════════════════════════
 //  INICIO
 // ══════════════════════════════════════════════
+// ── Verificación de horario ──────────────────
+function estaAbierto(){
+  const ahora = new Date();
+  const arg = new Date(ahora.toLocaleString('en-US', {timeZone:'America/Argentina/Buenos_Aires'}));
+  const dia = arg.getDay(); // 0=Dom,1=Lun,2=Mar,3=Mie,4=Jue,5=Vie,6=Sab
+  const hora = arg.getHours() * 60 + arg.getMinutes();
+  const ABR = 10*60; // 10:00
+  if(dia===4 && hora>=ABR) return true; // Jueves desde 10:00
+  if(dia===5) return true;              // Viernes todo el día
+  if(dia===6 && hora<ABR) return true;  // Sábado hasta 10:00
+  return false;
+}
+function proximaApertura(){
+  const ahora = new Date();
+  const arg = new Date(ahora.toLocaleString('en-US',{timeZone:'America/Argentina/Buenos_Aires'}));
+  const dia = arg.getDay();
+  let d = (4-dia+7)%7;
+  if(d===0 && (arg.getHours()*60+arg.getMinutes())>=600) d=7;
+  const prox=new Date(arg); prox.setDate(prox.getDate()+d); prox.setHours(10,0,0,0);
+  return prox.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})+' a las 10:00 hs';
+}
+function mostrarBloqueado(){
+  const s=document.getElementById('splash'); if(s) s.remove();
+  if(document.getElementById('blockedScreen')) return;
+  const div=document.createElement('div');
+  div.id='blockedScreen'; div.className='blocked-screen';
+  div.innerHTML=`<div class="blocked-icon">🔒</div>
+    <h2>Sistema cerrado</h2>
+    <p>El sistema de pedidos está disponible<br><strong>jueves 10:00 hs hasta sábados 10:00 hs</strong></p>
+    <p style="font-size:13px;color:var(--ink3);margin-top:.5rem">Horario Argentina</p>
+    <div class="blocked-next">Próxima apertura: ${proximaApertura()}</div>`;
+  document.body.appendChild(div);
+}
+
 function ocultarSplash(){
   const s=document.getElementById('splash');
   if(s){ s.classList.add('fade'); setTimeout(()=>s.remove(),450); }
@@ -555,6 +596,7 @@ function iniciarSplashMsgs(){
 }
 
 function initInicio(){
+  if(!estaAbierto()){ mostrarBloqueado(); return; }
   if(ST.semana){ document.getElementById('semanaText').textContent=ST.semana; document.getElementById('semanaBadge').style.display='inline-flex'; }
   iniciarSplashMsgs();
   if(scriptOK()){
@@ -596,6 +638,7 @@ async function iniciarPedido(){
   if(!suc){ document.getElementById('sucInput').focus(); return; }
   if(!ST.productos.carne.length && !ST.productos.verd.length){ toast('El admin aún no cargó los productos'); return; }
 
+  if(!estaAbierto()){ mostrarBloqueado(); return; }
   ST.sucursal = suc;
   ST.pedidoEnviado = false;
   ST.zona = getZona(suc);
@@ -901,6 +944,7 @@ function copiarTexto(){
 //  ADMIN
 // ══════════════════════════════════════════════
 function abrirAdmin(){
+  // Admin puede entrar siempre, incluso fuera de horario
   document.getElementById('adminOverlay').classList.add('open');
   document.getElementById('adminPwd').value='';
   document.getElementById('lockErr').textContent='';
