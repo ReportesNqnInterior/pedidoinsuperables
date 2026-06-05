@@ -263,7 +263,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
   <div class="splash-msg" id="splashMsg">Cargando ofertas...</div>
 </div>
 
-<div class="shell">
+<div class="shell" id="mainShell" style="opacity:0;transition:opacity .3s ease">
 
   <!-- top bar -->
   <div class="top-bar">
@@ -454,7 +454,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 // ══════════════════════════════════════════════
 //  CONFIG — editá estas variables
 // ══════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzPD60oc3heSiK7YPqIUpewtWvSk03sCto48JB6O0H2_QoNXDjgqcATyDqe-Xw1TlyziQ/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6c0z67LmyclQ-ab2x7rjaNeIdI65KUIzcJYm2A5bhVUdl_dvJexfgaimXY-FrtvuHsQ/exec';
 const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'; // sha256("123456")
 const MAX_QTY    = 4;
 
@@ -576,6 +576,7 @@ function mostrarBloqueado(){
 function ocultarSplash(){
   const s=document.getElementById('splash');
   if(s){ s.classList.add('fade'); setTimeout(()=>s.remove(),450); }
+  const m=document.getElementById('mainShell'); if(m) setTimeout(()=>m.style.opacity='1',100);
 }
 
 const SPLASH_MSGS = [
@@ -619,6 +620,7 @@ async function cargarConfigRemota(){
       if(rc.semana) ST.semana = rc.semana;
       if(rc.productos && (rc.productos.carne.length||rc.productos.verd.length))
         ST.productos = rc.productos;
+      if(rc.plus) ST.plus = rc.plus;
     }
     if(ri.ok && ri.imagenes) ST.imagenes = ri.imagenes;
     persistir();
@@ -1076,7 +1078,7 @@ function guardarSemana(){
 }
 async function guardarConfigRemota(){
   if(!scriptOK()) return;
-  try{ await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'saveConfig',semana:ST.semana,productos:ST.productos})}); }catch(e){}
+  try{ await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({accion:'saveConfig',semana:ST.semana,productos:ST.productos,plus:ST.plus})}); }catch(e){}
 }
 
 // ── Imágenes admin ──────────────────────────
@@ -1114,6 +1116,7 @@ function setPlus(tipo,idx,nombre,esPlus){
   persistir();
   renderAiGrids();
   renderGrids();
+  guardarConfigRemota();
 }
 function switchAiTab(tab,btn){
   document.getElementById('aiTabC').style.display=tab==='carne'?'block':'none';
