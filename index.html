@@ -610,11 +610,18 @@ function initInicio(){
   }
 }
 
-async function cargarConfigRemota(intentos = 2){
+async function cargarConfigRemota(intentos = 1){
   try{
+    const fetchConTimeout = (url, ms=8000) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(()=>ctrl.abort(), ms);
+      return fetch(url, { signal: ctrl.signal, redirect: 'follow', cache: 'no-store' })
+        .finally(()=>clearTimeout(t));
+    };
+
     const [rc, ri] = await Promise.all([
-      fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json()),
-      fetch(`${SCRIPT_URL}?accion=getImagenes`).then(r=>r.json())
+      fetchConTimeout(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json()),
+      fetchConTimeout(`${SCRIPT_URL}?accion=getImagenes`).then(r=>r.json())
     ]);
     if(rc.ok){
       if(rc.semana) ST.semana = rc.semana;
@@ -627,11 +634,9 @@ async function cargarConfigRemota(intentos = 2){
     return true;
   }catch(e){
     if(intentos > 0){
-      // Reintentar una vez más antes de rendirse
-      await new Promise(res=>setTimeout(res, 800));
+      await new Promise(res=>setTimeout(res, 1000));
       return cargarConfigRemota(intentos - 1);
     }
-    // Se agotaron los reintentos: avisar que se está usando una copia local
     console.error('No se pudo sincronizar con el servidor:', e);
     mostrarAvisoSinSync();
     return false;
