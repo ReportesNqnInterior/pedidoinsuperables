@@ -459,7 +459,7 @@ const ADMIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc
 const MAX_QTY    = 4;
 
 const ZONAS = {
-  'Río Negro':        ['007','010','042','048','051','053','092','164','195','238','241','242','243','246','265','363'],
+  'Río Negro':        ['007','010','042','048','051','053','092','064','195','238','241','242','243','246','265','363'],
   'Neuquén Interior': ['050','076','172','182','188','213','228','230','234','247','259','266','356','357'],
   'Neuquén Ciudad':   ['006','068','162','225','226','229','232','233','235','236','237','239','240','248']
 };
@@ -610,7 +610,7 @@ function initInicio(){
   }
 }
 
-async function cargarConfigRemota(){
+async function cargarConfigRemota(intentos = 2){
   try{
     const [rc, ri] = await Promise.all([
       fetch(`${SCRIPT_URL}?accion=getConfig`).then(r=>r.json()),
@@ -624,7 +624,27 @@ async function cargarConfigRemota(){
     }
     if(ri.ok && ri.imagenes) ST.imagenes = ri.imagenes;
     persistir();
-  }catch(e){}
+    return true;
+  }catch(e){
+    if(intentos > 0){
+      // Reintentar una vez más antes de rendirse
+      await new Promise(res=>setTimeout(res, 800));
+      return cargarConfigRemota(intentos - 1);
+    }
+    // Se agotaron los reintentos: avisar que se está usando una copia local
+    console.error('No se pudo sincronizar con el servidor:', e);
+    mostrarAvisoSinSync();
+    return false;
+  }
+}
+
+function mostrarAvisoSinSync(){
+  if(document.getElementById('syncWarnBanner')) return;
+  const div = document.createElement('div');
+  div.id = 'syncWarnBanner';
+  div.style = 'position:fixed;top:0;left:0;right:0;background:#F0C040;color:#1A1914;font-size:12px;font-weight:600;text-align:center;padding:7px 12px;z-index:1100;font-family:DM Sans,sans-serif';
+  div.innerHTML = '⚠ No se pudo conectar con el servidor — mostrando datos guardados localmente, pueden estar desactualizados. <span style="text-decoration:underline;cursor:pointer" onclick="location.reload()">Reintentar</span>';
+  document.body.appendChild(div);
 }
 
 function detectarZona(suc){
